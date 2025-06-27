@@ -1,9 +1,5 @@
 package org.wind.util;
 
-import com.jayway.jsonpath.JsonPath;
-
-import java.io.File;
-
 public class SendConfig
 {
 	public static void main(String[] args) throws Exception

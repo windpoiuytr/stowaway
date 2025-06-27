@@ -1,14 +1,11 @@
 package org.wind.util;
 
-import com.jayway.jsonpath.JsonPath;
-
 import javax.mail.*;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import javax.mail.search.AndTerm;
 import javax.mail.search.FromStringTerm;
 import javax.mail.search.SearchTerm;
-import java.io.File;
 import java.util.Properties;
 
 public class MailUtils
