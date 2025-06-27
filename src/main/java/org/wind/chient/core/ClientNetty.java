@@ -75,8 +75,8 @@ public class ClientNetty
 
 		// 关闭通道
 		if (serverChannel != null) serverChannel.close();
-		if (bossGroup != null) bossGroup.shutdownGracefully();
-		if (workerGroup != null) workerGroup.shutdownGracefully();
+		if (bossGroup != null) bossGroup.shutdownGracefully().syncUninterruptibly();
+		if (workerGroup != null) workerGroup.shutdownGracefully().syncUninterruptibly();
 
 		System.out.println("Netty 服务器已关闭");
 	}
