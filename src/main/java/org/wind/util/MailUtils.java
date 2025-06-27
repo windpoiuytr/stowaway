@@ -128,30 +128,4 @@ public class MailUtils
 		}
 		return null;
 	}
-
-	public static void main(String[] args) throws Exception
-	{
-		// 读取配置文件
-		String config = JsonPath.parse(new File("config.json")).jsonString();
-		// 发送邮件示例
-		MailUtils.sendEmail(
-				"smtp.qq.com",            // SMTP 服务器
-				"487377539@qq.com",          // 发件邮箱
-				"chpejplhiceebjha",         // 密码
-				"2548127559@qq.com",        // 收件邮箱
-				"config",             // 标题
-				config        // 邮件正文（JSON）
-		);
-
-		// 接收匹配邮件示例
-		// String json = MailUtil.receiveLatestJsonMail(
-		// 		"imap.qq.com",            // IMAP 服务器
-		// 		"2548127559@qq.com",        // 登录邮箱
-		// 		"fnookyyazkeaebha",         // 密码
-		// 		"487377539@qq.com",          // 过滤：发件人
-		// 		"config"              // 过滤：标题关键词
-		// );
-		//
-		// System.out.println("收到配置JSON：\n" + json);
-	}
 }

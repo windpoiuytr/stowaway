@@ -53,6 +53,7 @@ public class ServerNetty
 			System.out.println("Netty 启动成功，端口：" + port);
 		} catch (InterruptedException e)
 		{
+			e.printStackTrace();
 			disable();
 		}
 	}

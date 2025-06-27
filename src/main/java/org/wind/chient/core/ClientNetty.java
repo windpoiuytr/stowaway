@@ -54,6 +54,13 @@ public class ClientNetty
 			SystemProxy.enable(port);
 		} catch (InterruptedException | IOException e)
 		{
+			// 弹出桌面提示框
+			javax.swing.JOptionPane.showMessageDialog(
+					null,
+					e.getMessage(),
+					"Netty 启动失败",
+					javax.swing.JOptionPane.ERROR_MESSAGE
+			);
 			disable();
 		}
 	}
