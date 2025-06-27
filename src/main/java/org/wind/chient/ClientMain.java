@@ -78,9 +78,9 @@ public class ClientMain
 				// 右键退出
 				else if (e.getButton() == MouseEvent.BUTTON3)
 				{
+					clientNetty.disable();
 					// 移除托盘
 					SystemTray.getSystemTray().remove(trayIcon);
-					clientNetty.disable();
 				}
 			}
 		});

@@ -73,10 +73,10 @@ public class ClientNetty
 		// 禁用系统代理
 		SystemProxy.disable();
 
-		// 优雅关闭通道
+		// 关闭通道
 		if (serverChannel != null) serverChannel.close();
-		if (bossGroup != null) bossGroup.shutdownGracefully().syncUninterruptibly();
-		if (workerGroup != null) workerGroup.shutdownGracefully().syncUninterruptibly();
+		if (bossGroup != null) bossGroup.shutdownGracefully();
+		if (workerGroup != null) workerGroup.shutdownGracefully();
 
 		System.out.println("Netty 服务器已关闭");
 	}
