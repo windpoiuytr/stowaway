@@ -1,0 +1,47 @@
+# 日常更新系统包索引（安全、稳妥）
+sudo apt update && sudo apt upgrade -y
+
+# 发行版升级、大版本更新（适合更激进的变更）（例如从 Ubuntu 22.04 升级到 24.04）
+sudo apt update && sudo apt full-upgrade -y
+
+# 安装 MySQL Server，Ubuntu 官方源默认提供的是 MySQL 8（从 20.04 起），可以直接安装：
+sudo apt install mysql-server -y
+
+# 检查 MySQL 是否成功安装并运行
+systemctl status mysql
+
+# 如果没启动，可以手动启动：
+sudo systemctl start mysql
+
+# 运行安全配置脚本（推荐）
+sudo mysql_secure_installation
+
+# 设置VALIDATEPASSWORD组件，输入y
+# 三个级别的密码验证策略: 0=低，1=中，2=高。输入2
+# 删除匿名用户，输入y
+# 禁止 root 远程登录，输入y
+# 删除 test 数据库，输入y
+# 重新加载权限表，输入y
+
+# 登录 MySQL（此时使用的是 auth_socket 身份验证方式，直接通过 sudo 登录。）
+sudo mysql
+
+# 将 root 用户改为密码认证
+ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'MySql@0208';
+FLUSH PRIVILEGES;
+
+# 开放远程访问（如需要）
+sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf
+
+# 找到 bind-address = 127.0.0.1，改成：
+bind-address = 0.0.0.0
+
+# 授权远程用户（示例）：
+CREATE USER 'root'@'%' IDENTIFIED BY 'MySql@0208';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%';
+FLUSH PRIVILEGES;
+
+# 重启 MySQL 服务：
+sudo systemctl restart mysql
+
+# 输入 exit 退出mysql

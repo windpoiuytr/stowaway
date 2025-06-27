@@ -1,0 +1,23 @@
+# 检查防火墙状态（Status: inactive，表示防火墙已关闭。）
+sudo ufw status
+
+# 禁用防火墙
+sudo ufw disable
+
+# 启用防火墙（启用时会提示“Firewall is active and enabled on system startup”，输入y确认。）
+sudo ufw enable
+
+# 允许入站端口9527（9527/tcp表示允许TCP协议的9527端口。）
+sudo ufw allow 9527/tcp
+
+# 如果需要允许UDP协议，可以运行：
+sudo ufw allow 40000:50000/udp
+
+# 关闭某个端口
+sudo ufw delete allow 9527/tcp
+
+# 验证规则（9527/tcp                   ALLOW       Anywhere）
+sudo ufw status numbered
+
+# 重新加载防火墙（可选）
+sudo ufw reload

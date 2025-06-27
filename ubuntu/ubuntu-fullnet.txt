@@ -1,0 +1,36 @@
+# 网络参数基础调优--------------------------
+
+# 设置MTU（默认1500，10Mbps网速无需改动）
+sudo ip link set dev eth0 mtu 1500
+
+# 设置队列长度适中（比如500）
+sudo ip link set dev eth0 txqueuelen 500
+
+# 开启irqbalance守护进程，实现中断均衡
+sudo systemctl enable irqbalance
+sudo systemctl start irqbalance
+
+# TCP 栈参数调优-----------------------------
+
+# 编辑 /etc/sysctl.conf，添加：
+
+net.core.rmem_max = 2621440    # 最大接收缓冲区 2.5MB
+net.core.wmem_max = 2621440    # 最大发送缓冲区 2.5MB
+
+net.ipv4.tcp_rmem = 4096 87380 2621440
+net.ipv4.tcp_wmem = 4096 65536 2621440
+
+net.ipv4.tcp_window_scaling = 1
+net.ipv4.tcp_timestamps = 1
+net.ipv4.tcp_congestion_control = cubic
+
+# 然后执行：
+sudo sysctl -p
+
+# 关闭无用服务，释放内存和CPU
+sudo systemctl disable bluetooth.service
+sudo systemctl disable cups.service
+sudo systemctl disable avahi-daemon.service
+
+# 确认没有占用大量CPU的进程：
+top

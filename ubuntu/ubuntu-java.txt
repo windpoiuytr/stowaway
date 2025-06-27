@@ -1,0 +1,14 @@
+# 日常更新系统包索引（安全、稳妥）
+sudo apt update && sudo apt upgrade -y
+
+# 发行版升级、大版本更新（适合更激进的变更）（例如从 Ubuntu 22.04 升级到 24.04）
+sudo apt update && sudo apt full-upgrade -y
+
+# 安装jdk11 -y=默认yse
+sudo apt install openjdk-11-jdk -y
+
+# 启动jar包（关闭终端后，程序会继续运行。）
+nohup java -jar stowaway.jar > app.log 2>&1 &
+
+# 使用 kill 命令终止进程：
+kill -9 6186

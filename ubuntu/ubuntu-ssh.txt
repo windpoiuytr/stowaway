@@ -1,0 +1,14 @@
+# 使用文本编辑器（如 nano 或 vim）打开 SSH 配置文件：
+sudo nano /etc/ssh/sshd_config
+
+# 找到以下行（通常在文件中间部分）：
+#Port 22
+
+# 取消注释并修改为新端口（例如 2222）：
+Port 39999
+
+# 修改配置后需重启 SSH 服务使更改生效：
+sudo systemctl restart sshd
+
+# 或（旧版 Ubuntu 可能使用）：
+sudo service ssh restart

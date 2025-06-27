@@ -1,0 +1,53 @@
+# 日常更新系统包索引（安全、稳妥）
+sudo apt update && sudo apt upgrade -y
+
+# 发行版升级、大版本更新（适合更激进的变更）（例如从 Ubuntu 22.04 升级到 24.04）
+sudo apt update && sudo apt full-upgrade -y
+
+# 安装 Redis
+sudo apt install redis-server
+
+# 查看 Redis 是否安装成功
+redis-server --version
+
+# 启动 Redis 服务（通常会自动启动）
+sudo systemctl start redis-server
+
+# 查看运行状态
+sudo systemctl status redis-server
+
+# 设置 Redis 开机自启
+sudo systemctl enable redis-server
+
+# 测试 Redis 是否正常工作
+redis-cli
+
+# 登录
+auth yourStrongPassword123
+
+# 输入：
+ping
+
+# 应该返回
+PONG
+
+# Redis 默认是本地监听，如果想要外部连接
+sudo nano /etc/redis/redis.conf
+
+# 将：
+bind 127.0.0.1 ::1
+
+# 改为：
+bind 0.0.0.0
+
+# 并将：
+protected-mode yes
+
+# 改为：
+protected-mode no
+
+# 设置密码
+requirepass yourStrongPassword123
+
+# 然后重启 Redis：
+sudo systemctl restart redis-server
