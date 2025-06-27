@@ -1,0 +1,27 @@
+{
+  "host": "45.205.28.11",
+  "port": 41598,
+  "sk": "poi951kiu236kjh9",
+  "direct": [
+    "localhost",
+    "127.0.0.1",
+    "192.168",
+    "baidu",
+    "bcebos",
+    "qq",
+    "weixin",
+    "gov.cn",
+    "cijiyun",
+    "cnblogs",
+    "csdn",
+    "uviewui",
+    "dcloud",
+    "gitee",
+    "qiniu",
+    "iqiyi.com",
+    "youku.com"
+  ],
+  "prohibit": [
+    "qwertyuiop"
+  ]
+}
