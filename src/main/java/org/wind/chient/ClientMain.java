@@ -68,9 +68,6 @@ public class ClientMain
 			@Override
 			public void mouseClicked(MouseEvent e)
 			{
-				// 显示加载图标
-				trayIcon.setImage(iconLoading);
-
 				// 不阻塞 EDT，始终能点进来
 				if (isProcessing.get())
 				{
@@ -78,6 +75,9 @@ public class ClientMain
 				}
 
 				isProcessing.set(true);
+
+				// 显示加载图标
+				trayIcon.setImage(iconLoading);
 
 				if (e.getButton() == MouseEvent.BUTTON1)
 				{
