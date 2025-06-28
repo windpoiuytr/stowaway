@@ -11,12 +11,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ClientMain
 {
-	// Netty 服务
-	private static ClientNetty clientNetty;
 	// 当前状态是否启用（true = 已启用，false = 已禁用），原子变量，防止线程冲突
 	private static final AtomicBoolean isEnabled = new AtomicBoolean(false);
 	// 标志是否正在执行某个操作
 	private static final AtomicBoolean isProcessing = new AtomicBoolean(false);
+	// Netty 服务
+	private static ClientNetty clientNetty;
 	// 托盘图标（用于后续访问和更新）
 	private static TrayIcon trayIcon;
 	// 启用状态图标
