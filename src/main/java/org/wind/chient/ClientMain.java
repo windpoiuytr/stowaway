@@ -106,8 +106,7 @@ public class ClientMain
 						try
 						{
 							disable();
-							// 移除托盘
-							SystemTray.getSystemTray().remove(trayIcon);
+							SystemTray.getSystemTray().remove(trayIcon); // 移除托盘
 						} finally
 						{
 							isProcessing.set(false);
