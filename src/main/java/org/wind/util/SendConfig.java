@@ -4,11 +4,15 @@ public class SendConfig
 {
 	public static void main(String[] args) throws Exception
 	{
+		int port = PortSKGenerator.generatePort();
+		String sk = PortSKGenerator.generateSK(16);
+		System.out.println(port + " - " + sk);
+
 		// 配置
 		String config = "{\n" +
 				"  \"host\": \"45.205.28.11\",\n" +
-				"  \"port\": 45682,\n" +
-				"  \"sk\": \"123qwe456asd789z\",\n" +
+				"  \"port\": " + port + ",\n" +
+				"  \"sk\": " + sk + ",\n" +
 				"  \"direct\": [\n" +
 				"    \"localhost\",\n" +
 				"    \"127.0.0.1\",\n" +

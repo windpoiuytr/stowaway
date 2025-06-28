@@ -1,7 +1,6 @@
 package org.wind.util;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.util.ReferenceCountUtil;
 
 import javax.crypto.Cipher;
@@ -33,19 +32,47 @@ public class AESCtrCipherUtil
 	}
 
 	/**
-	 * 转字节
+	 * 将 ByteBuf 转换为 byte[]，并确保释放原始 ByteBuf。
 	 *
-	 * @param msg Netty消息
+	 * @param msg 输入对象（必须是 ByteBuf 类型）
+	 * @return 转换后的 byte[]，如果输入为 null 或非 ByteBuf 类型，返回空数组
+	 * @throws IllegalArgumentException 如果输入不是 ByteBuf 类型
 	 */
 	public static byte[] toBytes(Object msg)
 	{
+		// 1. 参数校验
+		if (msg == null)
+		{
+			return new byte[0];
+		}
+		if (!(msg instanceof ByteBuf))
+		{
+			throw new IllegalArgumentException("Input must be a ByteBuf, but got: " + msg.getClass());
+		}
+
+		ByteBuf buf = (ByteBuf) msg;
+		// 2. 检查是否可读（避免异常）
+		if (!buf.isReadable())
+		{
+			ReferenceCountUtil.safeRelease(buf); // 安全释放
+			return new byte[0];
+		}
+
+		// 3. 拷贝数据到 byte[]
+		byte[] bytes;
 		try
 		{
-			return ByteBufUtil.getBytes((ByteBuf) msg);
-		} finally
+			bytes = new byte[buf.readableBytes()];
+			buf.readBytes(bytes); // 直接读取，避免 ByteBufUtil 的额外开销
+		} catch (Exception e)
 		{
-			ReferenceCountUtil.release(msg); // 释放引用
+			ReferenceCountUtil.safeRelease(buf); // 异常时确保释放
+			throw new RuntimeException("Failed to convert ByteBuf to bytes", e);
 		}
+
+		// 4. 确保释放（即使 readBytes 抛出异常）
+		ReferenceCountUtil.safeRelease(buf);
+		return bytes;
 	}
 
 	// 加密数据
