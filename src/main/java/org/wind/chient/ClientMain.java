@@ -31,6 +31,34 @@ public class ClientMain
 		// Swing UI 库
 		FlatDarculaLaf.setup();
 
+		// 获取当前工作目录
+		String baseDir = System.getProperty("user.dir");
+
+		// 加载图标资源
+		iconEnabled = Toolkit.getDefaultToolkit().getImage(baseDir + "/icon_enabled.png");
+		iconDisabled = Toolkit.getDefaultToolkit().getImage(baseDir + "/icon_disabled.png");
+		iconLoading = Toolkit.getDefaultToolkit().getImage(baseDir + "/icon_loading.gif");
+
+		// 创建托盘图标
+		trayIcon = new TrayIcon(iconLoading);
+		trayIcon.setImageAutoSize(true);
+
+		// 添加到系统托盘
+		try
+		{
+			SystemTray.getSystemTray().add(trayIcon);
+		} catch (AWTException e)
+		{
+			// 弹出桌面提示框
+			javax.swing.JOptionPane.showMessageDialog(
+					null,
+					e.getMessage(),
+					"无法添加系统托盘图标",
+					javax.swing.JOptionPane.ERROR_MESSAGE
+			);
+			throw new RuntimeException("无法添加系统托盘图标", e);
+		}
+
 		try
 		{
 			// 获取配置文件
@@ -47,23 +75,8 @@ public class ClientMain
 			throw new RuntimeException("获取配置文件失败", e);
 		}
 
-		// Netty 服务
+		// 新建 Netty 服务
 		clientNetty = new ClientNetty(8888);
-
-		// 获取当前工作目录
-		String baseDir = System.getProperty("user.dir");
-
-		// 加载图标资源
-		iconEnabled = Toolkit.getDefaultToolkit().getImage(baseDir + "/icon_enabled.png");
-		iconDisabled = Toolkit.getDefaultToolkit().getImage(baseDir + "/icon_disabled.png");
-		iconLoading = Toolkit.getDefaultToolkit().getImage(baseDir + "/icon_loading.gif");
-
-		// 创建托盘图标（初始为禁用状态）
-		trayIcon = new TrayIcon(iconDisabled);
-		trayIcon.setImageAutoSize(true);
-
-		// 默认开启
-		enable();
 
 		// 添加点击事件
 		trayIcon.addMouseListener(new MouseAdapter()
@@ -119,21 +132,8 @@ public class ClientMain
 			}
 		});
 
-		// 添加到系统托盘
-		try
-		{
-			SystemTray.getSystemTray().add(trayIcon);
-		} catch (AWTException e)
-		{
-			// 弹出桌面提示框
-			javax.swing.JOptionPane.showMessageDialog(
-					null,
-					e.getMessage(),
-					"无法添加系统托盘图标",
-					javax.swing.JOptionPane.ERROR_MESSAGE
-			);
-			throw new RuntimeException("无法添加系统托盘图标", e);
-		}
+		// 默认开启
+		enable();
 
 		// 添加关闭钩子（确保系统关机/重启时清理）
 		Runtime.getRuntime().addShutdownHook(new Thread(clientNetty::disable));

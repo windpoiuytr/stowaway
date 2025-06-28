@@ -16,7 +16,7 @@ public class ServerMain
 			throw new RuntimeException("获取配置文件失败", e);
 		}
 
-		// Netty 服务
+		// 新建 Netty 服务
 		ServerNetty serverNetty = new ServerNetty(Config.data.read("$.port", Integer.class));
 		serverNetty.enable();
 
