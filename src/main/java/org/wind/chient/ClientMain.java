@@ -71,16 +71,16 @@ public class ClientMain
 				// 显示加载图标
 				trayIcon.setImage(iconLoading);
 
+				// 不阻塞 EDT，始终能点进来
+				if (isProcessing.get())
+				{
+					return; // 操作进行中，忽略本次点击
+				}
+
+				isProcessing.set(true);
+
 				if (e.getButton() == MouseEvent.BUTTON1)
 				{
-					// 不阻塞 EDT，始终能点进来
-					if (isProcessing.get())
-					{
-						return; // 操作进行中，忽略本次点击
-					}
-
-					isProcessing.set(true);
-
 					new Thread(() ->
 					{
 						try
