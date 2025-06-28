@@ -62,6 +62,9 @@ public class ClientMain
 		trayIcon = new TrayIcon(iconDisabled);
 		trayIcon.setImageAutoSize(true);
 
+		// 默认开启
+		enable();
+
 		// 添加点击事件
 		trayIcon.addMouseListener(new MouseAdapter()
 		{
@@ -134,9 +137,6 @@ public class ClientMain
 
 		// 添加关闭钩子（确保系统关机/重启时清理）
 		Runtime.getRuntime().addShutdownHook(new Thread(clientNetty::disable));
-
-		// 默认开启
-		enable();
 	}
 
 	/**
