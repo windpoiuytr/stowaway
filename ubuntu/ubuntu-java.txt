@@ -11,4 +11,4 @@ sudo apt install openjdk-11-jdk -y
 nohup java -jar stowaway.jar > app.log 2>&1 &
 
 # 使用 kill 命令终止进程：
-kill -9 1080
+kill -9 2156

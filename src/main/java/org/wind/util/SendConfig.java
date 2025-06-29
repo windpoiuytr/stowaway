@@ -31,6 +31,11 @@ public class SendConfig
 				"    \"qiniu\",\n" +
 				"    \"iqiyi.com\",\n" +
 				"    \"youku.com\"\n" +
+				"    \"ncat21.com\"\n" +
+				"    \"ynzqyc.com\"\n" +
+				"    \"137.175.52.231\"\n" +
+				"    \"103.147.224.38\"\n" +
+				"    \"107.148.206.168\"\n" +
 				"  ],\n" +
 				"  \"prohibit\": [\n" +
 				"    \"gov.cn\"\n" +
