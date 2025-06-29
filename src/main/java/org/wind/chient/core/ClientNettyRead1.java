@@ -34,8 +34,6 @@ public class ClientNettyRead1 extends ChannelInboundHandlerAdapter
 		bootstrap
 				.group(channelClient.eventLoop())
 				.channel(channelClient.getClass())
-				.option(ChannelOption.TCP_NODELAY, true) // 关闭 Nagle 算法，低延迟
-				.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT) // 使用堆外内存池
 				.handler(new ChannelInitializer<SocketChannel>()
 				{
 					@Override

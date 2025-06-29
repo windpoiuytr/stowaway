@@ -32,8 +32,6 @@ public class ServerNetty
 		serverBootstrap
 				.group(bossGroup, workerGroup)
 				.channel(NioServerSocketChannel.class)
-				.childOption(ChannelOption.TCP_NODELAY, true) // 关闭 Nagle 算法，低延迟
-				.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT) // 使用堆外内存池
 				.childHandler(new ChannelInitializer<SocketChannel>()
 				{
 					@Override
