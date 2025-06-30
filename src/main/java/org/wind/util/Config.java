@@ -42,7 +42,7 @@ public class Config
 		// System.out.println(data.jsonString());
 
 
-		// 获取邮箱并解析配置文件
+		// // 获取邮箱并解析配置文件
 		String json = MailUtils.receiveLatestJsonMail(
 				"imap.qq.com",            // IMAP 服务器
 				"2548127559@qq.com",        // 登录邮箱

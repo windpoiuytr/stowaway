@@ -2,7 +2,6 @@ package org.wind.server.core;
 
 import com.jayway.jsonpath.DocumentContext;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
@@ -12,112 +11,155 @@ import org.wind.util.AESCtrCipherUtil;
 
 public class ServerNettyRead1 extends ChannelInboundHandlerAdapter
 {
-	// 定义属性的键（Key）
+
 	static final AttributeKey<Channel> CHANNEL_KEY = AttributeKey.valueOf("channelKey");
 	static final AttributeKey<DocumentContext> JSON_KEY = AttributeKey.valueOf("jsonKey");
-	private Channel channelClient;
-	private Bootstrap bootstrap;
-	private AESCtrCipherUtil cipherUtil;
 
-	/**
-	 * 管道激活
-	 *
-	 * @param ctx 管道处理程序上下文
-	 */
-	@Override
-	public void channelActive(ChannelHandlerContext ctx)
+	private final Bootstrap bootstrap;
+
+	public ServerNettyRead1()
 	{
-		channelClient = ctx.channel();
 		bootstrap = new Bootstrap();
-		bootstrap
-				.group(channelClient.eventLoop())
-				.channel(channelClient.getClass())
+	}
+
+	@Override
+	public void channelActive(ChannelHandlerContext ctx) throws Exception
+	{
+		bootstrap.group(ctx.channel().eventLoop())
+				.channel(ctx.channel().getClass())
 				.handler(new ChannelInitializer<SocketChannel>()
 				{
 					@Override
-					protected void initChannel(SocketChannel socketChannel)
+					protected void initChannel(SocketChannel ch)
 					{
-						socketChannel.pipeline().addLast(new ServerNettyRead3());
+						ch.pipeline().addLast(new ServerNettyRead3());
 					}
 				});
+		super.channelActive(ctx);
 	}
 
-	/**
-	 * 管道读
-	 *
-	 * @param ctx 管道处理程序上下文
-	 * @param msg 管道消息
-	 */
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg)
 	{
-		// 获取加解密工具类
-		cipherUtil = channelClient.attr(ReceiveIv.CIPHER_UTIL_KEY).get();
+		Channel currentChannel = ctx.channel();
 
-		// 消息转字节并解密
-		byte[] decryptBytes = cipherUtil.de(AESCtrCipherUtil.toBytes(msg));
-		// 解析成 JSON 数据
-		DocumentContext json = JsonUtil.parse(decryptBytes);
-
-		// 连接服务端
-		ChannelFuture channelFuture = bootstrap.connect(json.read("$.host", String.class), json.read("$.port", Integer.class));
-		channelFuture.addListener((future) ->
+		// 取加解密工具
+		AESCtrCipherUtil cipherUtil = currentChannel.attr(ReceiveIv.CIPHER_UTIL_KEY).get();
+		if (cipherUtil == null)
 		{
-			// 连接成功
-			if (future.isSuccess())
+			// System.err.println("[ERROR] ServerNettyRead1: 未找到加解密工具，关闭连接");
+			safeClose(currentChannel);
+			return;
+		}
+
+		try
+		{
+			byte[] decryptBytes = cipherUtil.de(AESCtrCipherUtil.toBytes(msg));
+			DocumentContext json = JsonUtil.parse(decryptBytes);
+
+			String host = json.read("$.host", String.class);
+			Integer port = json.read("$.port", Integer.class);
+			if (host == null || port == null)
 			{
-				// 添加下一个处理器
-				channelClient.pipeline().addLast(new ServerNettyRead2());
-
-				// 服务端管道
-				Channel channelServer = channelFuture.channel();
-
-				// 存储到管道上下文
-				channelClient.attr(CHANNEL_KEY).set(channelServer);
-				channelClient.attr(JSON_KEY).set(json);
-				channelServer.attr(CHANNEL_KEY).set(channelClient);
-				channelServer.attr(JSON_KEY).set(json);
-				// 保存加解密工具类至管道上下文
-				channelServer.attr(ReceiveIv.CIPHER_UTIL_KEY).set(cipherUtil);
-
-				// 如果是禁连
-				if (json.read("$.isProhibit", Boolean.class))
-				{
-					// 关闭相关管道
-					channelClient.close();
-					channelServer.close();
-				}
-				// 如果是建立连接请求
-				else if (json.read("$.isConnect", Boolean.class))
-				{
-					// 建立连接成功
-					channelClient.writeAndFlush(Unpooled.wrappedBuffer(cipherUtil.en(json.read("$.established", String.class).getBytes())));
-				}
-				// 否则是代理
-				else
-				{
-					channelServer.writeAndFlush(Unpooled.wrappedBuffer(decryptBytes));
-				}
+				// System.err.println("[ERROR] ServerNettyRead1: JSON中host或port为空，关闭连接");
+				safeClose(currentChannel);
+				return;
 			}
-		});
 
-		// 删除处理器（自己）
-		channelClient.pipeline().remove(this);
+			ChannelFuture future = bootstrap.connect(host, port);
+			future.addListener((ChannelFuture f) ->
+			{
+				if (f.isSuccess())
+				{
+					Channel remoteChannel = f.channel();
+
+					// 互相保存对端通道
+					currentChannel.attr(CHANNEL_KEY).set(remoteChannel);
+					remoteChannel.attr(CHANNEL_KEY).set(currentChannel);
+
+					// 保存JSON和加密工具到两端
+					currentChannel.attr(JSON_KEY).set(json);
+					remoteChannel.attr(JSON_KEY).set(json);
+					remoteChannel.attr(ReceiveIv.CIPHER_UTIL_KEY).set(cipherUtil);
+
+					// 双向关闭监听器：一端断开另一端也关闭
+					addCloseListeners(currentChannel, remoteChannel);
+
+					currentChannel.pipeline().addLast(new ServerNettyRead2());
+
+					if (Boolean.TRUE.equals(json.read("$.isProhibit", Boolean.class)))
+					{
+						// System.out.println("[INFO] ServerNettyRead1: 连接被禁止，关闭双方通道");
+						safeClose(currentChannel);
+						safeClose(remoteChannel);
+					} else if (Boolean.TRUE.equals(json.read("$.isConnect", Boolean.class)))
+					{
+						byte[] established = cipherUtil.en(json.read("$.established", String.class).getBytes());
+						currentChannel.writeAndFlush(Unpooled.wrappedBuffer(established));
+					} else
+					{
+						remoteChannel.writeAndFlush(Unpooled.wrappedBuffer(decryptBytes));
+					}
+
+					currentChannel.pipeline().remove(ServerNettyRead1.this);
+
+				} else
+				{
+					// System.err.printf("[ERROR] ServerNettyRead1: 连接目标 %s:%d 失败: %s%n", host, port, f.cause());
+					safeClose(currentChannel);
+				}
+			});
+		} catch (Exception e)
+		{
+			// System.err.println("[ERROR] ServerNettyRead1: 处理消息异常：" + e.getMessage());
+			// e.printStackTrace();
+			safeClose(currentChannel);
+		}
 	}
 
 	/**
-	 * 管道未激活（关闭）
+	 * 双向添加关闭监听器，确保一端关闭时另一端也关闭，避免资源泄漏
+	 *
+	 * @param channel1 通道1
+	 * @param channel2 通道2
+	 */
+	private void addCloseListeners(Channel channel1, Channel channel2)
+	{
+		channel1.closeFuture().addListener(future ->
+		{
+			if (channel2.isOpen())
+			{
+				channel2.close();
+			}
+		});
+		channel2.closeFuture().addListener(future ->
+		{
+			if (channel1.isOpen())
+			{
+				channel1.close();
+			}
+		});
+	}
+
+	/**
+	 * 通道关闭时，同时关闭对端连接，防止资源泄漏
 	 *
 	 * @param ctx 管道处理程序上下文
 	 */
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx)
 	{
+		Channel peer = ctx.channel().attr(CHANNEL_KEY).get();
+		if (peer != null && peer.isOpen())
+		{
+			peer.close();
+		}
 		ctx.close();
+		// System.out.println("[INFO] ServerNettyRead1: 通道关闭，已关闭对端通道");
 	}
 
 	/**
-	 * 管道异常已捕获
+	 * 异常捕获时，关闭自身和对端连接，防止资源泄漏，并打印日志
 	 *
 	 * @param ctx   管道处理程序上下文
 	 * @param cause 异常信息
@@ -125,6 +167,26 @@ public class ServerNettyRead1 extends ChannelInboundHandlerAdapter
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
 	{
+		// System.err.println("[ERROR] ServerNettyRead1: 异常捕获 - " + cause.getMessage());
+		// cause.printStackTrace();
+		Channel peer = ctx.channel().attr(CHANNEL_KEY).get();
+		if (peer != null && peer.isOpen())
+		{
+			peer.close();
+		}
 		ctx.close();
+	}
+
+	/**
+	 * 安全关闭通道，避免空指针和重复关闭
+	 *
+	 * @param channel 目标通道
+	 */
+	private void safeClose(Channel channel)
+	{
+		if (channel != null && channel.isOpen())
+		{
+			channel.close();
+		}
 	}
 }

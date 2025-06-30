@@ -12,28 +12,31 @@ import org.wind.chient.util.JsonUtil;
 import org.wind.util.AESCtrCipherUtil;
 
 import java.security.SecureRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ClientNettyRead1 extends ChannelInboundHandlerAdapter
 {
-	// 定义属性的键（Key）
+	// 属性键，用于在 Channel 上存储对端 Channel 和 JSON 信息
 	static final AttributeKey<Channel> CHANNEL_KEY = AttributeKey.valueOf("channelKey");
 	static final AttributeKey<DocumentContext> JSON_KEY = AttributeKey.valueOf("jsonKey");
-	private Channel channelClient;
-	private Bootstrap bootstrap;
+	// 可选：连接统计器（便于调试）
+	private static final AtomicInteger connectionCounter = new AtomicInteger(0);
+	private Channel channelClient;  // 当前客户端 Channel
+	private Bootstrap bootstrap;    // 用于连接远程服务端
 
 	/**
-	 * 管道激活
-	 *
-	 * @param ctx 管道处理程序上下文
+	 * 管道激活时初始化 Bootstrap
 	 */
 	@Override
 	public void channelActive(ChannelHandlerContext ctx)
 	{
 		channelClient = ctx.channel();
+
 		bootstrap = new Bootstrap();
 		bootstrap
-				.group(channelClient.eventLoop())
-				.channel(channelClient.getClass())
+				.group(channelClient.eventLoop()) // 使用同一个线程池
+				.channel(channelClient.getClass()) // 同类 channel
+				.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
 				.handler(new ChannelInitializer<SocketChannel>()
 				{
 					@Override
@@ -42,96 +45,152 @@ public class ClientNettyRead1 extends ChannelInboundHandlerAdapter
 						socketChannel.pipeline().addLast(new ClientNettyRead3());
 					}
 				});
+
+		// 打印调试信息
+		int current = connectionCounter.incrementAndGet();
+		// System.out.println("[DEBUG] 激活连接数 +1 => " + current);
 	}
 
 	/**
-	 * 管道读
-	 *
-	 * @param ctx 管道处理程序上下文
-	 * @param msg 管道消息
+	 * 接收客户端发来的 JSON 数据，解析后连接服务端
 	 */
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg)
 	{
-		// 消息转字节
-		byte[] bytes = AESCtrCipherUtil.toBytes(msg);
-		// 解析成 JSON 数据
-		DocumentContext json = JsonUtil.parse(bytes);
-
-		// 连接服务端
-		ChannelFuture channelFuture = bootstrap.connect(json.read("$.host", String.class), json.read("$.port", Integer.class));
-		channelFuture.addListener((future) ->
+		try
 		{
-			// 连接成功
-			if (future.isSuccess())
+			// 将接收到的对象转换为字节数组
+			byte[] bytes = AESCtrCipherUtil.toBytes(msg);
+
+			// 解析 JSON 格式
+			DocumentContext json = JsonUtil.parse(bytes);
+
+			// 获取目标主机和端口
+			String host = json.read("$.host", String.class);
+			int port = json.read("$.port", Integer.class);
+
+			// 发起连接
+			ChannelFuture channelFuture = bootstrap.connect(host, port);
+			channelFuture.addListener((ChannelFuture future) ->
 			{
-				// 添加下一个处理器
-				channelClient.pipeline().addLast(new ClientNettyRead2());
-
-				// 服务端管道
-				Channel channelServer = channelFuture.channel();
-
-				// 存储到管道上下文
-				channelClient.attr(CHANNEL_KEY).set(channelServer);
-				channelClient.attr(JSON_KEY).set(json);
-				channelServer.attr(CHANNEL_KEY).set(channelClient);
-				channelServer.attr(JSON_KEY).set(json);
-
-				// 如果是直连
-				if (json.read("$.isDirect", Boolean.class))
+				if (future.isSuccess())
 				{
-					// 如果是建立连接请求
-					if (json.read("$.isConnect", Boolean.class))
+					// 连接成功，获取服务端 Channel
+					Channel channelServer = future.channel();
+
+					// 将对端绑定到彼此
+					channelClient.attr(CHANNEL_KEY).set(channelServer);
+					channelClient.attr(JSON_KEY).set(json);
+					channelServer.attr(CHANNEL_KEY).set(channelClient);
+					channelServer.attr(JSON_KEY).set(json);
+
+					// 添加下一阶段处理器
+					channelClient.pipeline().addLast(new ClientNettyRead2());
+
+					// 处理直连情况
+					if (json.read("$.isDirect", Boolean.class))
 					{
-						// 建立连接成功
-						channelClient.writeAndFlush(Unpooled.wrappedBuffer(json.read("$.established", String.class).getBytes()));
-					} else
-					{
-						channelServer.writeAndFlush(Unpooled.wrappedBuffer(bytes));
+						if (json.read("$.isConnect", Boolean.class))
+						{
+							// 客户端发起的是 CONNECT 请求，返回已连接响应
+							String response = json.read("$.established", String.class);
+							channelClient.writeAndFlush(Unpooled.wrappedBuffer(response.getBytes()));
+						} else
+						{
+							// 直连数据转发
+							channelServer.writeAndFlush(Unpooled.wrappedBuffer(bytes));
+						}
 					}
-				}
-				// 否则是代理
-				else
+					// 代理加密情况
+					else
+					{
+						// 生成 16 字节随机 IV（128位）
+						byte[] iv = new byte[16];
+						new SecureRandom().nextBytes(iv);
+
+						// 给服务端 pipeline 添加解码和响应处理器
+						channelServer.pipeline()
+								.addFirst(new ReceiveOk(iv, bytes))
+								.addFirst("ReceiveOkFixedLength", new FixedLengthFrameDecoder(2));
+
+						// 将 IV 发送给远端服务
+						channelServer.writeAndFlush(Unpooled.wrappedBuffer(iv));
+					}
+
+					// 监听两端关闭，互相关闭彼此
+					addCloseListeners(channelClient, channelServer);
+
+				} else
 				{
-					// 创建16字节iv = 128位
-					byte[] iv = new byte[16];
-					new SecureRandom().nextBytes(iv);
-
-					// 添加上一个处理器
-					channelServer.pipeline()
-							.addFirst(new ReceiveOk(iv, bytes))
-							.addFirst("ReceiveOkFixedLength", new FixedLengthFrameDecoder(2));
-
-					// 发给服务端
-					channelServer.writeAndFlush(Unpooled.wrappedBuffer(iv));
+					// 连接失败时关闭当前连接并打印原因
+					// System.err.println("[ERROR] 连接目标失败: " + host + ":" + port);
+					// future.cause().printStackTrace();
+					ctx.close();
 				}
-			}
-		});
+			});
 
-		// 删除处理器（自己）
-		channelClient.pipeline().remove(this);
+		} catch (Exception e)
+		{
+			// e.printStackTrace();
+			ctx.close();
+		} finally
+		{
+			// 移除自身处理器，避免重复读取
+			ctx.pipeline().remove(this);
+		}
 	}
 
 	/**
-	 * 管道未激活（关闭）
-	 *
-	 * @param ctx 管道处理程序上下文
+	 * 双向添加关闭监听器：一端断开，另一端也关闭
+	 */
+	private void addCloseListeners(Channel channel1, Channel channel2)
+	{
+		channel1.closeFuture().addListener(future ->
+		{
+			if (channel2.isOpen()) channel2.close();
+		});
+		channel2.closeFuture().addListener(future ->
+		{
+			if (channel1.isOpen()) channel1.close();
+		});
+	}
+
+	/**
+	 * 管道关闭时，清理连接并统计
 	 */
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx)
 	{
-		ctx.close();
+		// 获取对端 Channel，关闭
+		Channel peer = ctx.channel().attr(CHANNEL_KEY).get();
+		if (peer != null && peer.isOpen())
+		{
+			peer.close();
+		}
+
+		// 减少连接计数
+		int current = connectionCounter.decrementAndGet();
+		// System.out.println("[DEBUG] 连接断开 -1 => " + current);
 	}
 
 	/**
-	 * 管道异常已捕获
-	 *
-	 * @param ctx   管道处理程序上下文
-	 * @param cause 异常信息
+	 * 异常处理时关闭两端连接
 	 */
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
 	{
+		// 打印异常信息
+		// System.err.println("[ERROR] 异常捕获: " + cause.getMessage());
+		// cause.printStackTrace();
+
+		// 获取并关闭对端 Channel
+		Channel peer = ctx.channel().attr(CHANNEL_KEY).get();
+		if (peer != null && peer.isOpen())
+		{
+			peer.close();
+		}
+
+		// 自己也关闭
 		ctx.close();
 	}
 }
